@@ -106,7 +106,7 @@ export default function LoginPage({ onSignIn }: Props) {
           {/* Hint */}
           <div className="mt-6 pt-5 border-t border-slate-800 text-center">
             <p className="text-xs text-slate-500">
-              Default admin: <span className="text-slate-400 font-medium">admin</span> / <span className="text-slate-400 font-medium">admin123</span>
+              Default admin: <span className="text-slate-400 font-medium">admin</span> / <span className="text-slate-400 font-medium">Adm1n!2024#secure</span>
             </p>
           </div>
         </div>

@@ -40,37 +40,12 @@ Deno.serve(async (req: Request) => {
 
       const { data, error } = await admin.auth.admin.createUser({
         email: "admin@admin.com",
-        password: "admin123",
+        password: "Adm1n!2024#secure",
         email_confirm: true,
         user_metadata: { role: "admin" },
       });
 
       if (error) {
-        // If password is too weak, create with a strong one then update via admin API
-        if (error.message.includes("Password") || error.message.includes("password")) {
-          const { data: data2, error: err2 } = await admin.auth.admin.createUser({
-            email: "admin@admin.com",
-            password: "Adm1n!2024#secure",
-            email_confirm: true,
-            user_metadata: { role: "admin" },
-          });
-          if (err2) {
-            return new Response(
-              JSON.stringify({ error: err2.message }),
-              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          await admin.auth.admin.updateUserById(data2.user.id, { password: "admin123" });
-          await admin.from("profiles").upsert({
-            id: data2.user.id,
-            role: "admin",
-            mailer_id: null,
-          });
-          return new Response(
-            JSON.stringify({ message: "Admin user created", id: data2.user.id }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
         return new Response(
           JSON.stringify({ error: error.message }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

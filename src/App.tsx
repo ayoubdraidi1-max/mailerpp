@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Database, Layers, ChartBar as BarChart3, Mail, Shield, LogOut } from 'lucide-react';
+import { Database, Layers, ChartBar as BarChart3, Mail, Shield, LogOut, Table2 } from 'lucide-react';
 import { useTrackerData } from '@/hooks/useTrackerData';
 import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/components/LoginPage';
@@ -8,8 +8,9 @@ import DropsTab from '@/components/DropsTab';
 import TrackerTab from '@/components/TrackerTab';
 import AdminTab from '@/components/AdminTab';
 import MailerTab from '@/components/MailerTab';
+import SheetsTab from '@/components/SheetsTab';
 
-type Tab = 'inputs' | 'drops' | 'tracker' | 'admin' | 'mailer';
+type Tab = 'inputs' | 'drops' | 'tracker' | 'admin' | 'mailer' | 'sheets';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('tracker');
@@ -32,6 +33,7 @@ export default function App() {
 
   const tabs: { id: Tab; label: string; icon: typeof Database; adminOnly?: boolean }[] = [
     { id: 'tracker', label: 'Tracker', icon: BarChart3 },
+    { id: 'sheets', label: 'Sheets', icon: Table2 },
     { id: 'inputs', label: 'Inputs', icon: Database, adminOnly: true },
     { id: 'drops', label: 'Drops', icon: Layers, adminOnly: true },
     { id: 'mailer', label: 'My Mailer', icon: Mail },
@@ -153,6 +155,9 @@ export default function App() {
                 mailers={mailers}
                 mailerId={user.mailer_id}
               />
+            )}
+            {activeTab === 'sheets' && (
+              <SheetsTab />
             )}
             {activeTab === 'admin' && isAdmin && (
               <AdminTab mailers={mailers} />
