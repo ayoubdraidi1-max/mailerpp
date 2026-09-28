@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, AlertTriangle, Layers } from 'lucide-react';
+import { Plus, Trash2, TriangleAlert as AlertTriangle, Layers } from 'lucide-react';
 import { supabase, formatFull } from '@/lib/supabase';
 import type { Offer, Dataset, Mailer, DropWithNames } from '@/lib/supabase';
 

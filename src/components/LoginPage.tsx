@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, User, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, LogIn, CircleAlert as AlertCircle } from 'lucide-react';
 
 type Props = {
   onSignIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;

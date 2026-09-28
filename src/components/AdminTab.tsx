@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Shield, UserPlus, KeyRound, Trash2, Search, Mail,
-  AlertCircle, X, UserCog, ChevronDown,
-} from 'lucide-react';
+import { Shield, UserPlus, KeyRound, Trash2, Search, Mail, CircleAlert as AlertCircle, X, UserCog, ChevronDown } from 'lucide-react';
 import { supabase, formatFull } from '@/lib/supabase';
 import type { Mailer } from '@/lib/supabase';
 

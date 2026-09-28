@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Mail, Layers, BarChart3 } from 'lucide-react';
+import { Mail, Layers, ChartBar as BarChart3 } from 'lucide-react';
 import { formatFull } from '@/lib/supabase';
 import type { Dataset, DropWithNames, Mailer } from '@/lib/supabase';
 

@@ -1,8 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  BarChart3, TrendingUp, CheckCircle2, ChevronRight, ArrowLeft, Search,
-  Building2, Tag,
-} from 'lucide-react';
+import { ChartBar as BarChart3, TrendingUp, CircleCheck as CheckCircle2, ChevronRight, ArrowLeft, Search, Building2, Tag } from 'lucide-react';
 import { formatFull, formatNumber } from '@/lib/supabase';
 import type { Sponsor, Offer, Dataset, DropWithNames } from '@/lib/supabase';
 
