@@ -1,0 +1,3 @@
+[functions.user-management]
+verify_jwt = false
+entrypoint = "./functions/user-management/index.ts"
