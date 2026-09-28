@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Database, Layers, BarChart3, Mail, Shield, LogOut } from 'lucide-react';
+import { Database, Layers, ChartBar as BarChart3, Mail, Shield, LogOut } from 'lucide-react';
 import { useTrackerData } from '@/hooks/useTrackerData';
 import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/components/LoginPage';
