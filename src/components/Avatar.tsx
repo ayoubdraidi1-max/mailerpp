@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const UNKNOWN_AVATAR = 'https://images.pexels.com/photos/399772/pexels-photo-399772.jpeg?auto=compress&cs=tinysrgb&h=200&w=200';
-const MALE_FALLBACK = 'https://images.pexels.com/photos/31420959/pexels-photo-31420959.jpeg?auto=compress&cs=tinysrgb&h=200&w=200';
-const FEMALE_FALLBACK = 'https://images.pexels.com/photos/10230832/pexels-photo-10230832.jpeg?auto=compress&cs=tinysrgb&h=200&w=200';
+const MALE_FALLBACK = '/assets/images/image.png';
+const FEMALE_FALLBACK = '/assets/images/image copy.png';
+const UNKNOWN_AVATAR = MALE_FALLBACK;
 
 export function getFallbackUrl(gender?: 'male' | 'female' | null): string {
   if (gender === 'male') return MALE_FALLBACK;
