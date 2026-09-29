@@ -383,9 +383,6 @@ function StatCard({
 }
 
 function DatasetRow({ dataset: ds }: { dataset: DatasetProgress }) {
-  const segments = 40;
-  const segmentSize = ds.total / segments;
-
   return (
     <div className="px-5 py-4">
       <div className="flex items-center justify-between mb-2">
@@ -409,19 +406,16 @@ function DatasetRow({ dataset: ds }: { dataset: DatasetProgress }) {
       </div>
 
       {/* Progress bar */}
-      <div className="flex gap-0.5 h-3 rounded-lg overflow-hidden bg-slate-800">
-        {Array.from({ length: segments }, (_, i) => {
-          const segStart = Math.floor(i * segmentSize) + 1;
-          const segEnd = Math.floor((i + 1) * segmentSize);
-          const isSent = ds.ranges.some((r) => r.start <= segEnd && r.end >= segStart);
+      <div className="relative h-3 rounded-lg overflow-hidden bg-slate-800">
+        {ds.ranges.map((range) => {
+          const left = ((range.start - 1) / ds.total) * 100;
+          const width = ((range.end - range.start + 1) / ds.total) * 100;
           return (
             <div
-              key={i}
-              className={`flex-1 transition-colors ${
-                isSent
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                  : 'bg-slate-700/50'
-              }`}
+              key={`${range.start}-${range.end}`}
+              className="absolute inset-y-0 bg-gradient-to-r from-emerald-500 to-teal-400 transition-all"
+              style={{ left: `${left}%`, width: `${width}%` }}
+              title={`Records ${formatNumber(range.start)}–${formatNumber(range.end)}`}
             />
           );
         })}

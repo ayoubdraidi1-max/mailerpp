@@ -11,6 +11,7 @@ export function useTrackerData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isFirstLoad = useRef(true);
+  const mountedRef = useRef(true);
 
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -37,6 +38,8 @@ export function useTrackerData() {
       if (datasetsRes.error) throw datasetsRes.error;
       if (mailersRes.error) throw mailersRes.error;
       if (dropsRes.error) throw dropsRes.error;
+
+      if (!mountedRef.current) return;
 
       setSponsors(sponsorsRes.data as Sponsor[]);
       setOffers(offersRes.data as Offer[]);
@@ -68,14 +71,34 @@ export function useTrackerData() {
 
       setDrops(dropRows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchAll();
+
+    // Realtime: refetch all data when any tracker table changes.
+    // We use a single channel with per-table filters so any INSERT/UPDATE/DELETE
+    // triggers a silent refetch — keeping every connected user in sync.
+    const channel = supabase
+      .channel('tracker-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, () => fetchAll(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'offers' }, () => fetchAll(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'datasets' }, () => fetchAll(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mailers' }, () => fetchAll(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drops' }, () => fetchAll(true))
+      .subscribe();
+
+    return () => {
+      mountedRef.current = false;
+      supabase.removeChannel(channel);
+    };
   }, [fetchAll]);
 
   const refetch = useCallback(() => {

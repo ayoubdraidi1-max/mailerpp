@@ -259,6 +259,7 @@ function SheetEditor({
   const [copiedFlash, setCopiedFlash] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  const lastSelectedRow = useRef<string | null>(null);
 
   const cellKey = (rowId: string, colId: string) => `${rowId}::${colId}`;
 
@@ -285,7 +286,7 @@ function SheetEditor({
       const { data: cellData, error: cellErr } = await supabase
         .from('sheet_cells')
         .select('row_id, column_id, content')
-        .in('row_id', rws.map((r) => r.id));
+        .eq('sheet_id', sheet.id);
       if (cellErr) {
         console.error('Failed to load cells:', cellErr.message);
       } else if (cellData) {
@@ -302,6 +303,21 @@ function SheetEditor({
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  // Click outside the grid to deselect (like Google Sheets)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (editingCell) return;
+      if (showColorPicker) return;
+      const target = e.target as HTMLElement;
+      if (gridRef.current && !gridRef.current.contains(target)) {
+        setSelectedRows(new Set());
+        lastSelectedRow.current = null;
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editingCell, showColorPicker]);
 
   // Keyboard: Ctrl+C copy selected rows, Ctrl+V paste
   useEffect(() => {
@@ -406,14 +422,14 @@ function SheetEditor({
     const typedRows = newRows as SheetRow[];
 
     // For each line, split by tab for multi-column paste; put into first column otherwise
-    const cellInserts: { row_id: string; column_id: string; content: string }[] = [];
+    const cellInserts: { row_id: string; column_id: string; content: string; sheet_id: string }[] = [];
     validLines.forEach((line, i) => {
       const row = typedRows[i];
       const parts = line.split('\t');
       columns.forEach((col, ci) => {
         const content = parts[ci] ?? '';
         if (content) {
-          cellInserts.push({ row_id: row.id, column_id: col.id, content });
+          cellInserts.push({ row_id: row.id, column_id: col.id, content, sheet_id: sheet.id });
         }
       });
     });
@@ -479,7 +495,7 @@ function SheetEditor({
       // Insert new cell
       const { error } = await supabase
         .from('sheet_cells')
-        .insert({ row_id: rowId, column_id: colId, content });
+        .insert({ row_id: rowId, column_id: colId, content, sheet_id: sheet.id });
       if (error) {
         console.error('Failed to insert cell:', error.message);
         return;
@@ -600,7 +616,17 @@ function SheetEditor({
     setEditingCell(null);
   };
 
-  const toggleRowSelection = (rowId: string, ctrlKey: boolean) => {
+  const toggleRowSelection = (rowId: string, ctrlKey: boolean, shiftKey: boolean) => {
+    if (shiftKey && lastSelectedRow.current) {
+      const startIdx = rows.findIndex((r) => r.id === lastSelectedRow.current);
+      const endIdx = rows.findIndex((r) => r.id === rowId);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const from = Math.min(startIdx, endIdx);
+        const to = Math.max(startIdx, endIdx);
+        setSelectedRows(new Set(rows.slice(from, to + 1).map((r) => r.id)));
+        return;
+      }
+    }
     if (ctrlKey) {
       setSelectedRows((prev) => {
         const next = new Set(prev);
@@ -611,6 +637,7 @@ function SheetEditor({
     } else {
       setSelectedRows(new Set([rowId]));
     }
+    lastSelectedRow.current = rowId;
   };
 
   const selectAllRows = () => {
@@ -778,10 +805,11 @@ function SheetEditor({
 
       {/* Hint bar */}
       <div className="flex items-center gap-4 text-xs text-slate-500">
-        <span>Ctrl+Click to select multiple rows</span>
+        <span>Click to select a row</span>
+        <span>Shift+Click to select a range</span>
+        <span>Ctrl+Click to toggle individual rows</span>
         <span>Ctrl+C / Ctrl+V to copy and paste</span>
         <span>Double-click a cell to edit</span>
-        <span>Tab-separated values paste into columns</span>
       </div>
 
       {/* Grid */}
@@ -792,7 +820,12 @@ function SheetEditor({
           <p className="text-sm mt-1">Click "Row" to add a row, or paste data with Ctrl+V</p>
         </div>
       ) : (
-        <div ref={gridRef} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-x-auto">
+        <div ref={gridRef} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-x-auto" onClick={(e) => {
+          if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'TABLE') {
+            setSelectedRows(new Set());
+            lastSelectedRow.current = null;
+          }
+        }}>
           <table className="w-full border-collapse select-none">
             {/* Column headers */}
             <thead>
@@ -866,7 +899,7 @@ function SheetEditor({
                     {/* Row number / selector */}
                     <td
                       className="w-10 px-2 py-1.5 text-center text-xs text-slate-600 font-mono sticky left-0 bg-slate-900/60 cursor-pointer hover:bg-slate-800/40 z-10"
-                      onClick={(e) => toggleRowSelection(row.id, e.ctrlKey || e.metaKey)}
+                      onClick={(e) => toggleRowSelection(row.id, e.ctrlKey || e.metaKey, e.shiftKey)}
                     >
                       {isSelected ? (
                         <Check className="w-3.5 h-3.5 text-blue-400 mx-auto" />

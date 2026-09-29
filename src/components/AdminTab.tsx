@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, UserPlus, KeyRound, Trash2, Search, Mail, CircleAlert as AlertCircle, X, UserCog, ChevronDown } from 'lucide-react';
+import { Shield, UserPlus, KeyRound, Trash2, Search, Mail, CircleAlert as AlertCircle, X, UserCog } from 'lucide-react';
 import { supabase, formatFull } from '@/lib/supabase';
 import type { Mailer } from '@/lib/supabase';
+import Avatar, { getAvatarUrl } from '@/components/Avatar';
 
 type ManagedUser = {
   id: string;
@@ -10,6 +11,10 @@ type ManagedUser = {
   mailer_id: string | null;
   mailer_name: string | null;
   created_at: string;
+  avatar_url: string | null;
+  gender: 'male' | 'female' | null;
+  is_online: boolean;
+  display_name: string | null;
 };
 
 type Props = {
@@ -114,9 +119,11 @@ export default function AdminTab({ mailers }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                  <th className="text-left px-5 py-3 font-medium">Email</th>
+                  <th className="text-left px-5 py-3 font-medium">User</th>
                   <th className="text-left px-3 py-3 font-medium">Role</th>
                   <th className="text-left px-3 py-3 font-medium">Mailer</th>
+                  <th className="text-left px-3 py-3 font-medium">Gender</th>
+                  <th className="text-left px-3 py-3 font-medium">Status</th>
                   <th className="text-left px-3 py-3 font-medium">Created</th>
                   <th className="px-3 py-3"></th>
                 </tr>
@@ -124,7 +131,7 @@ export default function AdminTab({ mailers }: Props) {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-12 text-slate-500">
+                    <td colSpan={7} className="text-center py-12 text-slate-500">
                       {users.length === 0 ? 'No users yet' : 'No users match your search'}
                     </td>
                   </tr>
@@ -168,7 +175,6 @@ function UserRow({
   mailers: Mailer[];
   onChanged: () => void;
 }) {
-  const [showActions, setShowActions] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
   const [newPw, setNewPw] = useState('');
   const [pwMsg, setPwMsg] = useState<string | null>(null);
@@ -231,11 +237,14 @@ function UserRow({
   return (
     <tr className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
       <td className="px-5 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 text-xs font-bold">
-            {user.email.charAt(0).toUpperCase()}
+        <div className="flex items-center gap-2.5">
+          <Avatar user={user} size={36} />
+          <div className="min-w-0">
+            <div className="text-slate-200 truncate">{user.display_name || user.email}</div>
+            {user.display_name && (
+              <div className="text-xs text-slate-500 truncate">{user.email}</div>
+            )}
           </div>
-          <span className="text-slate-200">{user.email}</span>
         </div>
       </td>
       <td className="px-3 py-3">
@@ -259,6 +268,22 @@ function UserRow({
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </select>
+      </td>
+      <td className="px-3 py-3">
+        <span className="text-xs text-slate-400 capitalize">{user.gender ?? '—'}</span>
+      </td>
+      <td className="px-3 py-3">
+        {user.is_online ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Online
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-slate-600" />
+            Offline
+          </span>
+        )}
       </td>
       <td className="px-3 py-3 text-xs text-slate-500">
         {new Date(user.created_at).toLocaleDateString()}
@@ -327,8 +352,15 @@ function AddUserModal({
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('user');
   const [mailerId, setMailerId] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const previewUser = {
+    avatar_url: null,
+    gender,
+    email: email || 'Preview',
+  };
 
   const submit = async () => {
     if (!email.trim() || !password) return;
@@ -346,6 +378,7 @@ function AddUserModal({
         password,
         role,
         mailer_id: mailerId || null,
+        gender,
       }),
     });
 
@@ -364,7 +397,7 @@ function AddUserModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6"
+        className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -378,6 +411,44 @@ function AddUserModal({
         </div>
 
         <div className="space-y-4">
+          {/* Avatar preview + gender selector */}
+          <div className="flex items-center gap-4">
+            <Avatar user={previewUser} size={64} />
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                Gender
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setGender('male')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    gender === 'male'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Male
+                </button>
+                <button
+                  onClick={() => setGender('female')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    gender === 'female'
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Female
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-1">
+            <p className="text-xs text-slate-500">
+              The user can upload their own photo later from their profile settings.
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
               Email

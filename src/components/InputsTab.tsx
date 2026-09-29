@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Tag, Database, Users, Globe, Building2, Search } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, Trash2, Tag, Database, Users, Globe, Building2, Search, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { supabase, REGION_CODES, formatFull } from '@/lib/supabase';
 import type { Sponsor, Offer, Dataset, Mailer } from '@/lib/supabase';
 
@@ -12,15 +12,29 @@ type Props = {
 };
 
 export default function InputsTab({ sponsors, offers, datasets, mailers, refetch }: Props) {
+  const [actionError, setActionError] = useState<string | null>(null);
+  const wrappedRefetch = useCallback(() => {
+    setActionError(null);
+    refetch();
+  }, [refetch]);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-6">
-        <SponsorsSection sponsors={sponsors} refetch={refetch} />
-        <OffersSection sponsors={sponsors} offers={offers} refetch={refetch} />
-      </div>
-      <div className="space-y-6">
-        <DatasetsSection datasets={datasets} refetch={refetch} />
-        <MailersSection mailers={mailers} refetch={refetch} />
+    <div className="space-y-6">
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {actionError}
+        </div>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <SponsorsSection sponsors={sponsors} refetch={wrappedRefetch} setError={setActionError} />
+          <OffersSection sponsors={sponsors} offers={offers} refetch={wrappedRefetch} setError={setActionError} />
+        </div>
+        <div className="space-y-6">
+          <DatasetsSection datasets={datasets} refetch={wrappedRefetch} setError={setActionError} />
+          <MailersSection mailers={mailers} refetch={wrappedRefetch} setError={setActionError} />
+        </div>
       </div>
     </div>
   );
@@ -50,18 +64,26 @@ function SectionCard({
   );
 }
 
-function SponsorsSection({ sponsors, refetch }: { sponsors: Sponsor[]; refetch: () => void }) {
+function SponsorsSection({ sponsors, refetch, setError }: { sponsors: Sponsor[]; refetch: () => void; setError: (e: string | null) => void }) {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const add = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const maxPos = sponsors.reduce((mx, s) => Math.max(mx, s.position), -1);
+    setError(null);
+    const { data: nextPos, error: posError } = await supabase.rpc('get_next_position', { p_table: 'sponsors' });
+    if (posError || nextPos === null) {
+      setError('Failed to assign position. Please try again.');
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase
       .from('sponsors')
-      .insert({ name: name.trim(), position: maxPos + 1 });
-    if (!error) {
+      .insert({ name: name.trim(), position: nextPos });
+    if (error) {
+      setError(error.message || 'Failed to add sponsor.');
+    } else {
       setName('');
       refetch();
     }
@@ -69,7 +91,11 @@ function SponsorsSection({ sponsors, refetch }: { sponsors: Sponsor[]; refetch: 
   };
 
   const remove = async (id: string) => {
-    await supabase.from('sponsors').delete().eq('id', id);
+    setError(null);
+    const { error } = await supabase.from('sponsors').delete().eq('id', id);
+    if (error) {
+      setError('Failed to delete sponsor. It may be referenced by existing offers.');
+    }
     refetch();
   };
 
@@ -120,7 +146,7 @@ function SponsorsSection({ sponsors, refetch }: { sponsors: Sponsor[]; refetch: 
   );
 }
 
-function OffersSection({ sponsors, offers, refetch }: { sponsors: Sponsor[]; offers: Offer[]; refetch: () => void }) {
+function OffersSection({ sponsors, offers, refetch, setError }: { sponsors: Sponsor[]; offers: Offer[]; refetch: () => void; setError: (e: string | null) => void }) {
   const [name, setName] = useState('');
   const [sponsorId, setSponsorId] = useState('');
   const [region, setRegion] = useState('');
@@ -134,16 +160,24 @@ function OffersSection({ sponsors, offers, refetch }: { sponsors: Sponsor[]; off
   const add = async () => {
     if (!name.trim() || !sponsorId || !region) return;
     setSaving(true);
-    const maxPos = offers.reduce((mx, o) => Math.max(mx, o.position), -1);
+    setError(null);
+    const { data: nextPos, error: posError } = await supabase.rpc('get_next_position', { p_table: 'offers' });
+    if (posError || nextPos === null) {
+      setError('Failed to assign position. Please try again.');
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase
       .from('offers')
       .insert({
         name: name.trim(),
         region,
         sponsor_id: sponsorId,
-        position: maxPos + 1,
+        position: nextPos,
       });
-    if (!error) {
+    if (error) {
+      setError(error.message || 'Failed to add offer. The selected sponsor may have been deleted.');
+    } else {
       setName('');
       setSponsorId('');
       setRegion('');
@@ -153,7 +187,11 @@ function OffersSection({ sponsors, offers, refetch }: { sponsors: Sponsor[]; off
   };
 
   const remove = async (id: string) => {
-    await supabase.from('offers').delete().eq('id', id);
+    setError(null);
+    const { error } = await supabase.from('offers').delete().eq('id', id);
+    if (error) {
+      setError('Failed to delete offer. It may be referenced by existing drops.');
+    }
     refetch();
   };
 
@@ -254,7 +292,7 @@ function OffersSection({ sponsors, offers, refetch }: { sponsors: Sponsor[]; off
   );
 }
 
-function DatasetsSection({ datasets, refetch }: { datasets: Dataset[]; refetch: () => void }) {
+function DatasetsSection({ datasets, refetch, setError }: { datasets: Dataset[]; refetch: () => void; setError: (e: string | null) => void }) {
   const [name, setName] = useState('');
   const [total, setTotal] = useState('');
   const [region, setRegion] = useState('');
@@ -263,11 +301,19 @@ function DatasetsSection({ datasets, refetch }: { datasets: Dataset[]; refetch: 
   const add = async () => {
     if (!name.trim() || !region || !total) return;
     setSaving(true);
-    const maxPos = datasets.reduce((mx, d) => Math.max(mx, d.position), -1);
+    setError(null);
+    const { data: nextPos, error: posError } = await supabase.rpc('get_next_position', { p_table: 'datasets' });
+    if (posError || nextPos === null) {
+      setError('Failed to assign position. Please try again.');
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase
       .from('datasets')
-      .insert({ name: name.trim(), total: parseInt(total, 10), region, position: maxPos + 1 });
-    if (!error) {
+      .insert({ name: name.trim(), total: parseInt(total, 10), region, position: nextPos });
+    if (error) {
+      setError(error.message || 'Failed to add dataset.');
+    } else {
       setName('');
       setTotal('');
       setRegion('');
@@ -277,7 +323,11 @@ function DatasetsSection({ datasets, refetch }: { datasets: Dataset[]; refetch: 
   };
 
   const remove = async (id: string) => {
-    await supabase.from('datasets').delete().eq('id', id);
+    setError(null);
+    const { error } = await supabase.from('datasets').delete().eq('id', id);
+    if (error) {
+      setError('Failed to delete dataset. It may be referenced by existing drops.');
+    }
     refetch();
   };
 
@@ -353,18 +403,26 @@ function DatasetsSection({ datasets, refetch }: { datasets: Dataset[]; refetch: 
   );
 }
 
-function MailersSection({ mailers, refetch }: { mailers: Mailer[]; refetch: () => void }) {
+function MailersSection({ mailers, refetch, setError }: { mailers: Mailer[]; refetch: () => void; setError: (e: string | null) => void }) {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const add = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const maxPos = mailers.reduce((mx, m) => Math.max(mx, m.position), -1);
+    setError(null);
+    const { data: nextPos, error: posError } = await supabase.rpc('get_next_position', { p_table: 'mailers' });
+    if (posError || nextPos === null) {
+      setError('Failed to assign position. Please try again.');
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase
       .from('mailers')
-      .insert({ name: name.trim(), position: maxPos + 1 });
-    if (!error) {
+      .insert({ name: name.trim(), position: nextPos });
+    if (error) {
+      setError(error.message || 'Failed to add mailer.');
+    } else {
       setName('');
       refetch();
     }
@@ -372,7 +430,11 @@ function MailersSection({ mailers, refetch }: { mailers: Mailer[]; refetch: () =
   };
 
   const remove = async (id: string) => {
-    await supabase.from('mailers').delete().eq('id', id);
+    setError(null);
+    const { error } = await supabase.from('mailers').delete().eq('id', id);
+    if (error) {
+      setError('Failed to delete mailer. It may be referenced by existing drops.');
+    }
     refetch();
   };
 

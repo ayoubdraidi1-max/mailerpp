@@ -63,15 +63,7 @@ export const REGION_CODES = [
 ];
 
 export function formatNumber(n: number): string {
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000;
-    return (Number.isInteger(v) ? v : v.toFixed(1)) + 'M';
-  }
-  if (n >= 1_000) {
-    const v = n / 1_000;
-    return (Number.isInteger(v) ? v : v.toFixed(1)) + 'K';
-  }
-  return String(n);
+  return n.toLocaleString('en-US');
 }
 
 export function formatFull(n: number): string {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Database, Layers, ChartBar as BarChart3, Mail, Shield, LogOut, Table2 } from 'lucide-react';
 import { useTrackerData } from '@/hooks/useTrackerData';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, usePresence } from '@/hooks/useAuth';
 import LoginPage from '@/components/LoginPage';
 import InputsTab from '@/components/InputsTab';
 import DropsTab from '@/components/DropsTab';
@@ -9,13 +9,17 @@ import TrackerTab from '@/components/TrackerTab';
 import AdminTab from '@/components/AdminTab';
 import MailerTab from '@/components/MailerTab';
 import SheetsTab from '@/components/SheetsTab';
+import Avatar from '@/components/Avatar';
+import ProfileModal from '@/components/ProfileModal';
 
 type Tab = 'inputs' | 'drops' | 'tracker' | 'admin' | 'mailer' | 'sheets';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('tracker');
-  const { user, loading: authLoading, signIn, signOut } = useAuth();
+  const { user, loading: authLoading, signIn, signOut, refreshProfile } = useAuth();
   const { sponsors, offers, datasets, mailers, drops, loading, error, refetch } = useTrackerData();
+  const onlineUsers = usePresence();
+  const [showProfile, setShowProfile] = useState(false);
 
   if (authLoading) {
     return (
@@ -41,9 +45,9 @@ export default function App() {
   ];
 
   const visibleTabs = tabs.filter((t) => !t.adminOnly || isAdmin);
-
-  // If current tab is not visible to this user, reset to tracker
   const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : 'tracker';
+
+  const otherOnlineUsers = onlineUsers.filter((u) => u.id !== user.id);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -84,17 +88,41 @@ export default function App() {
                 })}
               </nav>
 
+              {/* Active users avatars (Google Sheets style) */}
+              {otherOnlineUsers.length > 0 && (
+                <div className="hidden md:flex items-center -space-x-2">
+                  {otherOnlineUsers.slice(0, 5).map((u) => (
+                    <Avatar
+                      key={u.id}
+                      user={u}
+                      size={32}
+                      ring
+                      className="ring-2 ring-slate-900"
+                    />
+                  ))}
+                  {otherOnlineUsers.length > 5 && (
+                    <div className="w-8 h-8 rounded-full bg-slate-700 ring-2 ring-slate-900 flex items-center justify-center text-xs font-bold text-slate-300">
+                      +{otherOnlineUsers.length - 5}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* User menu */}
               <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60">
-                  <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 text-xs font-bold">
-                    {user.email.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="text-xs">
-                    <p className="text-slate-200 font-medium max-w-[120px] truncate">{user.email}</p>
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 transition-colors"
+                  title="Edit profile"
+                >
+                  <Avatar user={user} size={28} className="ring-1 ring-slate-600" />
+                  <div className="text-xs text-left">
+                    <p className="text-slate-200 font-medium max-w-[120px] truncate">
+                      {user.display_name || user.email}
+                    </p>
                     <p className="text-slate-500 capitalize">{user.role}</p>
                   </div>
-                </div>
+                </button>
                 <button
                   onClick={signOut}
                   className="flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-sm text-slate-300 hover:text-slate-100 transition-colors"
@@ -169,6 +197,14 @@ export default function App() {
       <footer className="border-t border-slate-800 py-4 text-center text-xs text-slate-500">
         Mail Distribution Tracker
       </footer>
+
+      {showProfile && user && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onUpdated={refreshProfile}
+        />
+      )}
     </div>
   );
 }

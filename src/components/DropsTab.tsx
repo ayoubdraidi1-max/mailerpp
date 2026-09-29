@@ -18,6 +18,7 @@ export default function DropsTab({ offers, datasets, mailers, drops, refetch }: 
   const [newOffset, setNewOffset] = useState('');
   const [newLimit, setNewLimit] = useState('');
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const selectedOffer = offers.find((o) => o.id === newOffer);
   const selectedDataset = datasets.find((d) => d.id === newDataset);
@@ -49,16 +50,24 @@ export default function DropsTab({ offers, datasets, mailers, drops, refetch }: 
     }
 
     setSaving(true);
-    const maxPos = drops.reduce((mx, d) => Math.max(mx, d.position), -1);
+    setActionError(null);
+    const { data: nextPos, error: posError } = await supabase.rpc('get_next_position', { p_table: 'drops' });
+    if (posError || nextPos === null) {
+      setActionError('Failed to assign position. Please try again.');
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase.from('drops').insert({
       offer_id: newOffer,
       dataset_id: newDataset,
       mailer_id: newMailer,
       offset,
       limit,
-      position: maxPos + 1,
+      position: nextPos,
     });
-    if (!error) {
+    if (error) {
+      setActionError(error.message || 'Failed to add drop. The selected offer, dataset, or mailer may have been deleted by another user.');
+    } else {
       setNewOffer('');
       setNewDataset('');
       setNewMailer('');
@@ -70,7 +79,11 @@ export default function DropsTab({ offers, datasets, mailers, drops, refetch }: 
   };
 
   const removeDrop = async (id: string) => {
-    await supabase.from('drops').delete().eq('id', id);
+    setActionError(null);
+    const { error } = await supabase.from('drops').delete().eq('id', id);
+    if (error) {
+      setActionError('Failed to delete drop. It may have already been removed by another user.');
+    }
     refetch();
   };
 
@@ -79,6 +92,12 @@ export default function DropsTab({ offers, datasets, mailers, drops, refetch }: 
 
   return (
     <div className="space-y-6">
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {actionError}
+        </div>
+      )}
       {/* Add new drop */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-800 bg-slate-900">

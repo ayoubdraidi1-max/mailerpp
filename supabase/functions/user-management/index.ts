@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
     if (action === "list-users") {
       const { data: profiles, error: profErr } = await admin
         .from("profiles")
-        .select("id, role, mailer_id, created_at, mailers(name)")
+        .select("id, role, mailer_id, created_at, avatar_url, gender, is_online, last_seen, mailers(name)")
         .order("created_at", { ascending: false });
 
       if (profErr) {
@@ -128,6 +128,10 @@ Deno.serve(async (req: Request) => {
           mailer_id: p.mailer_id,
           mailer_name: (p.mailers as { name: string } | null)?.name ?? null,
           created_at: p.created_at,
+          avatar_url: p.avatar_url ?? null,
+          gender: p.gender ?? null,
+          is_online: p.is_online ?? false,
+          last_seen: p.last_seen ?? null,
         };
       });
 
@@ -139,16 +143,25 @@ Deno.serve(async (req: Request) => {
 
     // Create user
     if (action === "create-user") {
-      const { email, password, role, mailer_id } = body as {
+      const { email, password, role, mailer_id, gender, avatar_url } = body as {
         email: string;
         password: string;
         role: string;
         mailer_id?: string;
+        gender?: string;
+        avatar_url?: string;
       };
 
       if (!email || !password) {
         return new Response(
           JSON.stringify({ error: "Email and password are required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!gender || !['male', 'female'].includes(gender)) {
+        return new Response(
+          JSON.stringify({ error: "Gender is required (male or female)" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -171,10 +184,37 @@ Deno.serve(async (req: Request) => {
         id: data.user.id,
         role: role ?? "user",
         mailer_id: mailer_id ?? null,
+        gender,
+        avatar_url: avatar_url ?? null,
       });
 
       return new Response(
         JSON.stringify({ message: "User created", id: data.user.id }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Heartbeat — sets current user as online and updates last_seen
+    if (action === "heartbeat") {
+      const now = new Date();
+      await admin.from("profiles")
+        .update({ is_online: true, last_seen: now.toISOString() })
+        .eq("id", userData.user.id);
+
+      return new Response(
+        JSON.stringify({ message: "ok" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Go offline
+    if (action === "go-offline") {
+      await admin.from("profiles")
+        .update({ is_online: false })
+        .eq("id", userData.user.id);
+
+      return new Response(
+        JSON.stringify({ message: "ok" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
