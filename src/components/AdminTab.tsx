@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Shield, UserPlus, KeyRound, Trash2, Search, Mail, CircleAlert as AlertCircle, X, UserCog } from 'lucide-react';
 import { supabase, formatFull } from '@/lib/supabase';
 import type { Mailer } from '@/lib/supabase';
-import Avatar, { getAvatarUrl } from '@/components/Avatar';
+import Avatar from '@/components/Avatar';
 
 type ManagedUser = {
   id: string;

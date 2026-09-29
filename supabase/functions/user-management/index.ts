@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
     if (action === "list-users") {
       const { data: profiles, error: profErr } = await admin
         .from("profiles")
-        .select("id, role, mailer_id, created_at, avatar_url, gender, is_online, last_seen, mailers(name)")
+        .select("id, role, mailer_id, created_at, avatar_url, gender, is_online, last_seen, display_name, mailers(name)")
         .order("created_at", { ascending: false });
 
       if (profErr) {
@@ -132,6 +132,7 @@ Deno.serve(async (req: Request) => {
           gender: p.gender ?? null,
           is_online: p.is_online ?? false,
           last_seen: p.last_seen ?? null,
+          display_name: p.display_name ?? null,
         };
       });
 
