@@ -128,7 +128,7 @@ export function useAuth() {
   }, [fetchProfile, startHeartbeat, stopHeartbeat]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const normalizedEmail = email.includes('@') ? email : `${email}@admin.com`;
+    const normalizedEmail = (email.includes('@') ? email : `${email}@admin.com`).trim().toLowerCase();
     const { error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password,

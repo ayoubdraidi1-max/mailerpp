@@ -374,7 +374,7 @@ function AddUserModal({
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
         role,
         mailer_id: mailerId || null,
